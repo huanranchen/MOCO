@@ -17,7 +17,7 @@ class Classifier(nn.Module):
         self.net = torchvision.models.regnet_y_400mf(pretrained=False)
         if encoder is not None:
             self.net.load_state_dict(torch.load(encoder + '.pth', map_location=device))
-            self.net.requires_grad_(False)
+            #self.net.requires_grad_(False)
         else:
             pass
         self.fc = nn.Sequential(
@@ -56,7 +56,7 @@ def train(batch_size=64, lr=1e-3, total_epoch=100, mode=None):
     valid_loss_for_draw = []
     valid_acc_for_draw = []
     best_acc = 0
-    best_loss = 0
+    best_loss = 999
 
     for epoch in range(total_epoch):
 
