@@ -22,11 +22,7 @@ class Classifier(nn.Module):
             pass
         self.fc = nn.Sequential(
             nn.LeakyReLU(),
-            nn.Linear(1000, 200),
-            nn.LeakyReLU(),
-            nn.Linear(200,50),
-            nn.LeakyReLU(),
-            nn.Linear(50, classes),
+            nn.Linear(1000, classes),
         )
 
 
@@ -84,22 +80,23 @@ def train(batch_size=64, lr=1e-3, total_epoch=100, mode=None):
         valid_loss = 0
         valid_acc = 0
         for x, y in tqdm(test_loader):
-            optimizer.zero_grad()
-            x = x.to(device)
-            y = y.to(device)
+            with torch.no_grad():
+                optimizer.zero_grad()
+                x = x.to(device)
+                y = y.to(device)
 
-            # N, 10
-            pre = model(x)
-            loss = criterion(pre, y)
-            valid_loss += loss.item()
-            loss.backward()
-            _, predict = torch.max(pre, dim=1)
-            valid_acc += (torch.sum((predict == y)).item() / batch_size)
+                # N, 10
+                pre = model(x)
+                loss = criterion(pre, y)
+                valid_loss += loss.item()
+                loss.backward()
+                _, predict = torch.max(pre, dim=1)
+                valid_acc += (torch.sum((predict == y)).item() / batch_size)
 
-        valid_acc /= len(test_loader)
-        valid_loss /= len(test_loader)
-        valid_loss_for_draw.append(valid_loss)
-        valid_acc_for_draw.append(valid_acc)
+            valid_acc /= len(test_loader)
+            valid_loss /= len(test_loader)
+            valid_loss_for_draw.append(valid_loss)
+            valid_acc_for_draw.append(valid_acc)
 
         if valid_acc > best_acc:
             best_acc=valid_acc

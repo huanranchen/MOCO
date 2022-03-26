@@ -17,8 +17,20 @@ class MoCo(nn.Module):
         super(MoCo, self).__init__()
         torch.manual_seed(2287)
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        self.q_backbone = torchvision.models.regnet_y_400mf(pretrained=False)
-        self.k_backbone = torchvision.models.regnet_y_400mf(pretrained=False)
+        self.q_backbone = nn.Sequential(
+            torchvision.models.regnet_y_400mf(pretrained=False),
+            nn.LeakyReLU(),
+            nn.Linear(1000, 500),
+            nn.LeakyReLU(),
+            nn.Linear(500, 128),
+        )
+        self.k_backbone = nn.Sequential(
+            torchvision.models.regnet_y_400mf(pretrained=False),
+            nn.LeakyReLU(),
+            nn.Linear(1000, 500),
+            nn.LeakyReLU(),
+            nn.Linear(500, 128),
+        )
         self.transform_none = transforms.Compose([
             transforms.ToTensor(),
         ])
@@ -47,7 +59,7 @@ class MoCo(nn.Module):
               t=0.1,
               lr=1e-3,
               weight_decay=0,
-              batch_size=64,
+              batch_size=128,
               m=0.99,
               total_epoch=1000
               ):
@@ -65,7 +77,7 @@ class MoCo(nn.Module):
         if os.path.exists('k_encoder.pth'):
             self.k_backbone.load_state_dict(torch.load('k_encoder.pth'))
         for i in range(total_epoch):
-            loss = self.train_one_epoch(t=t, lr=lr, weight_decay=weight_decay, batch_size=batch_size, m=m,)
+            loss = self.train_one_epoch(t=t, lr=lr, weight_decay=weight_decay, batch_size=batch_size, m=m, )
             print(f'epoch {i + 1}, loss = {loss}')
             torch.save(self.q_backbone.state_dict(), 'q_encoder.pth')
             torch.save(self.k_backbone.state_dict(), 'k_encoder.pth')
@@ -86,7 +98,8 @@ class MoCo(nn.Module):
         :return:
         '''
         optimizer = torch.optim.AdamW(self.q_backbone.parameters(), lr=lr, weight_decay=weight_decay)
-        cosLR = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=len(self.train_loader_not_aug), eta_min=0)
+        cosLR = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer=optimizer, T_max=len(self.train_loader_not_aug),
+                                                           eta_min=0)
         self.initialize_queue()
         epoch_loss = 0
         for (x_q, _), (x_k, _) in tqdm(zip(self.train_loader_not_aug, self.train_loader_aug)):
@@ -149,9 +162,9 @@ class MoCo(nn.Module):
         # print(self.queue)
         return torch.cat(self.queue, dim=0)
 
-    def initialize_queue(self, queue_length=5, batch_size=64):
+    def initialize_queue(self, queue_length=50, batch_size=64):
         '''
-        :param queue_lenth: relative length in terms of batch_size.
+        :param queue_lenth: relative length in terms of batch_size. Memory bank size.
         :param batch_size:
         :return:
         '''
